@@ -1,0 +1,167 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); }
+.sentence-row { display: flex; gap: 8px; justify-content: center; align-items: center; margin: 1rem 0 1.5rem; flex-wrap: wrap; }
+.word-pill { padding: 6px 14px; border-radius: 20px; font-size: 13px; border: 0.5px solid var(--color-border-tertiary); color: var(--color-text-secondary); background: var(--color-background-secondary); transition: all 0.35s; }
+.word-pill.active { background: #7F77DD; color: #EEEDFE; border-color: #534AB7; font-weight: 500; transform: scale(1.08); }
+.word-pill.done { color: var(--color-text-tertiary); opacity: 0.5; }
+.panels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 1.25rem; }
+.panel { border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 14px 12px; background: var(--color-background-primary); }
+.panel-title { font-size: 14px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 2px; }
+.panel-sub { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 12px; }
+.mem-label { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 5px; }
+.mem-track { height: 7px; background: var(--color-background-secondary); border-radius: 4px; overflow: hidden; margin-bottom: 10px; }
+.mem-fill { height: 100%; border-radius: 4px; transition: width 0.5s cubic-bezier(.4,0,.2,1); }
+.gate-row { display: flex; align-items: center; gap: 6px; margin-bottom: 7px; }
+.gate-label { font-size: 11px; color: var(--color-text-secondary); width: 52px; flex-shrink: 0; }
+.gate-track { flex: 1; height: 6px; background: var(--color-background-secondary); border-radius: 3px; overflow: hidden; }
+.gate-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+.thought-box { min-height: 36px; border-radius: var(--border-radius-md); background: var(--color-background-secondary); padding: 6px 8px; font-size: 11px; color: var(--color-text-secondary); line-height: 1.5; margin-top: 8px; transition: all 0.4s; }
+.note { font-size: 11px; color: var(--color-text-tertiary); font-style: italic; margin-top: 6px; }
+.controls { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 0.5rem; }
+.btn { padding: 8px 20px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: transparent; color: var(--color-text-primary); font-size: 13px; cursor: pointer; font-family: var(--font-sans); }
+.btn:hover { background: var(--color-background-secondary); }
+.btn:disabled { opacity: 0.35; cursor: default; }
+.step-indicator { font-size: 12px; color: var(--color-text-tertiary); min-width: 60px; text-align: center; }
+.legend { display: flex; gap: 16px; justify-content: center; margin-bottom: 1rem; flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--color-text-secondary); }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+</style>
+
+<h2 class="sr-only">Interactive analogy showing how RNN, LSTM and GRU handle memory as they read through a sentence word by word</h2>
+
+<div style="padding: 1rem 0 0.5rem;">
+  <div style="font-size: 13px; color: var(--color-text-secondary); text-align: center; margin-bottom: 0.75rem;">Reading the sentence word by word — watch how each model's memory changes</div>
+  <div class="sentence-row" id="sentence-row"></div>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#7F77DD"></div>Short-term / hidden state</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#1D9E75"></div>Long-term / cell state</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#EF9F27"></div>Gate activation</div>
+</div>
+
+<div class="panels">
+  <div class="panel">
+    <div class="panel-title">SimpleRNN</div>
+    <div class="panel-sub">One scratchpad, rewritten every step</div>
+    <div class="mem-label">Hidden state (h) — the only memory</div>
+    <div class="mem-track"><div class="mem-fill" id="rnn-h" style="background:#7F77DD; width:0%"></div></div>
+    <div class="thought-box" id="rnn-thought">Waiting...</div>
+    <div class="note" id="rnn-note"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">LSTM</div>
+    <div class="panel-sub">Notebook with 3 gates</div>
+    <div class="mem-label">Long-term memory (cell state c)</div>
+    <div class="mem-track"><div class="mem-fill" id="lstm-c" style="background:#1D9E75; width:0%"></div></div>
+    <div class="mem-label">Working memory (hidden state h)</div>
+    <div class="mem-track"><div class="mem-fill" id="lstm-h" style="background:#7F77DD; width:0%"></div></div>
+    <div class="gate-row"><div class="gate-label">Forget</div><div class="gate-track"><div class="gate-fill" id="lstm-f" style="background:#EF9F27; width:0%"></div></div></div>
+    <div class="gate-row"><div class="gate-label">Input</div><div class="gate-track"><div class="gate-fill" id="lstm-i" style="background:#EF9F27; width:0%"></div></div></div>
+    <div class="gate-row"><div class="gate-label">Output</div><div class="gate-track"><div class="gate-fill" id="lstm-o" style="background:#EF9F27; width:0%"></div></div></div>
+    <div class="thought-box" id="lstm-thought">Waiting...</div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">GRU</div>
+    <div class="panel-sub">Notebook with 2 gates</div>
+    <div class="mem-label">Hidden state h (merged memory)</div>
+    <div class="mem-track"><div class="mem-fill" id="gru-h" style="background:#7F77DD; width:0%"></div></div>
+    <div style="height: 34px"></div>
+    <div class="gate-row"><div class="gate-label">Reset</div><div class="gate-track"><div class="gate-fill" id="gru-r" style="background:#EF9F27; width:0%"></div></div></div>
+    <div class="gate-row"><div class="gate-label">Update</div><div class="gate-track"><div class="gate-fill" id="gru-u" style="background:#EF9F27; width:0%"></div></div></div>
+    <div style="height: 7px"></div>
+    <div class="thought-box" id="gru-thought">Waiting...</div>
+  </div>
+</div>
+
+<div class="controls">
+  <button class="btn" id="btn-prev" onclick="step(-1)" disabled>← Back</button>
+  <div class="step-indicator" id="step-ind">0 / 9</div>
+  <button class="btn" id="btn-next" onclick="step(1)">Next →</button>
+  <button class="btn" onclick="reset()">Reset</button>
+</div>
+
+<script>
+const words = ["To","be","or","not","to","be","that","is","the","question"];
+
+const steps = [
+  { rnn:{h:30,t:"Sees: \"To\"",note:""}, lstm:{c:25,h:30,f:20,i:70,o:60,t:"Writes \"To\" into notebook"}, gru:{h:30,r:30,u:70,t:"Stores \"To\""} },
+  { rnn:{h:40,t:"Sees: \"be\" — \"To\" starts fading",note:""}, lstm:{c:45,h:42,f:30,i:65,o:65,t:"Remembers \"To be\" clearly"}, gru:{h:42,r:25,u:65,t:"Merges \"be\" into memory"} },
+  { rnn:{h:38,t:"Sees: \"or\" — earlier words fading fast",note:""}, lstm:{c:55,h:48,f:45,i:55,o:60,t:"\"or\" added; old context held"}, gru:{h:48,r:40,u:60,t:"Updates with \"or\""} },
+  { rnn:{h:35,t:"Sees: \"not\" — only last 1-2 words matter now",note:"Vanishing gradient kicks in"}, lstm:{c:62,h:52,f:50,i:50,o:60,t:"Holds \"To be or\" in long memory"}, gru:{h:52,r:38,u:58,t:"Reset gate decides what to keep"} },
+  { rnn:{h:42,t:"Sees: \"to\" — pattern repeated, RNN gets confused",note:"Can't tell if this \"to\" matches the first"}, lstm:{c:70,h:58,f:60,i:48,o:62,t:"Recognises repeated pattern across gap"}, gru:{h:56,r:35,u:62,t:"Update gate blends old + new"} },
+  { rnn:{h:45,t:"Sees: \"be\" — only this word's context is strong",note:"Earlier \"To be\" is mostly gone"}, lstm:{c:78,h:64,f:65,i:45,o:65,t:"Links this \"be\" to the first \"be\" — coherent!"}, gru:{h:62,r:32,u:65,t:"Carries long-range dependency well"} },
+  { rnn:{h:40,t:"Sees: \"that\" — short-term OK, long-term lost",note:""}, lstm:{c:75,h:60,f:55,i:42,o:60,t:"Sees sentence structure forming"}, gru:{h:60,r:38,u:60,t:"Stable memory of the full phrase"} },
+  { rnn:{h:38,t:"Sees: \"is\" — still OK locally",note:""}, lstm:{c:72,h:58,f:50,i:40,o:58,t:"Remembers \"To be or not to be\" + \"that is\""}, gru:{h:58,r:35,u:58,t:"Context still intact"} },
+  { rnn:{h:36,t:"Sees: \"the\" — almost no memory of start",note:"First 4 words are essentially forgotten"}, lstm:{c:70,h:56,f:48,i:38,o:56,t:"Full context available for prediction"}, gru:{h:56,r:33,u:56,t:"Ready to predict next word accurately"} },
+  { rnn:{h:50,t:"Sees: \"question\" — can predict based on recent context only",note:"Likely guesses correctly by luck, not memory"}, lstm:{c:82,h:68,f:60,i:50,o:68,t:"Predicts confidently — remembered the full sentence"}, gru:{h:65,r:30,u:65,t:"Predicts well — nearly as good as LSTM"} },
+];
+
+let current = -1;
+
+function render(idx) {
+  words.forEach((w, i) => {
+    const el = document.getElementById('w-'+i);
+    el.className = 'word-pill';
+    if (i < idx) el.classList.add('done');
+    if (i === idx) el.classList.add('active');
+  });
+
+  if (idx < 0) {
+    ['rnn-h','lstm-c','lstm-h','lstm-f','lstm-i','lstm-o','gru-h','gru-r','gru-u'].forEach(id=>{
+      document.getElementById(id).style.width='0%';
+    });
+    document.getElementById('rnn-thought').textContent='Waiting...';
+    document.getElementById('lstm-thought').textContent='Waiting...';
+    document.getElementById('gru-thought').textContent='Waiting...';
+    document.getElementById('rnn-note').textContent='';
+    document.getElementById('step-ind').textContent='0 / '+words.length;
+    return;
+  }
+
+  const s = steps[idx];
+  document.getElementById('rnn-h').style.width = s.rnn.h+'%';
+  document.getElementById('lstm-c').style.width = s.lstm.c+'%';
+  document.getElementById('lstm-h').style.width = s.lstm.h+'%';
+  document.getElementById('lstm-f').style.width = s.lstm.f+'%';
+  document.getElementById('lstm-i').style.width = s.lstm.i+'%';
+  document.getElementById('lstm-o').style.width = s.lstm.o+'%';
+  document.getElementById('gru-h').style.width = s.gru.h+'%';
+  document.getElementById('gru-r').style.width = s.gru.r+'%';
+  document.getElementById('gru-u').style.width = s.gru.u+'%';
+  document.getElementById('rnn-thought').textContent = s.rnn.t;
+  document.getElementById('lstm-thought').textContent = s.lstm.t;
+  document.getElementById('gru-thought').textContent = s.gru.t;
+  document.getElementById('rnn-note').textContent = s.rnn.note;
+  document.getElementById('step-ind').textContent = (idx+1)+' / '+words.length;
+  document.getElementById('btn-prev').disabled = idx <= 0;
+  document.getElementById('btn-next').disabled = idx >= words.length-1;
+}
+
+function step(dir) {
+  current = Math.max(-1, Math.min(words.length-1, current+dir));
+  render(current);
+}
+
+function reset() {
+  current = -1;
+  render(current);
+  document.getElementById('btn-prev').disabled = true;
+  document.getElementById('btn-next').disabled = false;
+}
+
+const row = document.getElementById('sentence-row');
+words.forEach((w,i) => {
+  const el = document.createElement('span');
+  el.className = 'word-pill';
+  el.id = 'w-'+i;
+  el.textContent = w;
+  row.appendChild(el);
+});
+render(-1);
+document.getElementById('btn-next').disabled = false;
+</script>
